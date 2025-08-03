@@ -683,11 +683,6 @@ namespace DPSCalculatorforTJZXD
             return (dps10, dps45, dpsAvg);
         }
 
-
-
-
-
-
         //全参伤害计算
         private (double dps10, double dps45, double dpsAvg) CalculateDPS(
             double damage,
@@ -819,9 +814,6 @@ namespace DPSCalculatorforTJZXD
                 DrawGraph(currentEditingProperty, currentDpsFunc, currentMaxX);
             }
         }
-
-
-
 
         private void txtEnergyPool_TextChanged(object sender, EventArgs e)
         {
