@@ -59,6 +59,8 @@ namespace DPSCalculatorforTJZXD
             this.trackAdjust = new System.Windows.Forms.TrackBar();
             this.txtAdjustValue = new System.Windows.Forms.TextBox();
             this.btnApplyToInput = new System.Windows.Forms.Button();
+            this.chkIsLasting = new System.Windows.Forms.CheckBox();
+            this.txtAttackAnim = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxGraph)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackAdjust)).BeginInit();
             this.SuspendLayout();
@@ -66,7 +68,7 @@ namespace DPSCalculatorforTJZXD
             // chkIsEnergy
             // 
             this.chkIsEnergy.AutoSize = true;
-            this.chkIsEnergy.Location = new System.Drawing.Point(265, 371);
+            this.chkIsEnergy.Location = new System.Drawing.Point(265, 361);
             this.chkIsEnergy.Name = "chkIsEnergy";
             this.chkIsEnergy.Size = new System.Drawing.Size(117, 19);
             this.chkIsEnergy.TabIndex = 9;
@@ -86,6 +88,7 @@ namespace DPSCalculatorforTJZXD
             this.txtBulletAmount.Name = "txtBulletAmount";
             this.txtBulletAmount.Size = new System.Drawing.Size(100, 25);
             this.txtBulletAmount.TabIndex = 11;
+            this.txtBulletAmount.TextChanged += new System.EventHandler(this.txtBulletAmount_TextChanged);
             // 
             // txtBulletCapacity
             // 
@@ -181,6 +184,7 @@ namespace DPSCalculatorforTJZXD
             this.txtDPS10s.Name = "txtDPS10s";
             this.txtDPS10s.Size = new System.Drawing.Size(100, 25);
             this.txtDPS10s.TabIndex = 23;
+            this.txtDPS10s.TextChanged += new System.EventHandler(this.txtDPS10s_TextChanged);
             // 
             // txtDPS45s
             // 
@@ -324,11 +328,32 @@ namespace DPSCalculatorforTJZXD
             this.btnApplyToInput.Visible = false;
             this.btnApplyToInput.Click += new System.EventHandler(this.btnApplyToInput_Click);
             // 
+            // chkIsLasting
+            // 
+            this.chkIsLasting.AutoSize = true;
+            this.chkIsLasting.Location = new System.Drawing.Point(265, 390);
+            this.chkIsLasting.Name = "chkIsLasting";
+            this.chkIsLasting.Size = new System.Drawing.Size(125, 19);
+            this.chkIsLasting.TabIndex = 39;
+            this.chkIsLasting.Text = "chkIsLasting";
+            this.chkIsLasting.UseVisualStyleBackColor = true;
+            this.chkIsLasting.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            // 
+            // txtAttackAnim
+            // 
+            this.txtAttackAnim.Location = new System.Drawing.Point(38, 415);
+            this.txtAttackAnim.Name = "txtAttackAnim";
+            this.txtAttackAnim.Size = new System.Drawing.Size(100, 25);
+            this.txtAttackAnim.TabIndex = 40;
+            this.txtAttackAnim.Text = "AtkAniTime";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.txtAttackAnim);
+            this.Controls.Add(this.chkIsLasting);
             this.Controls.Add(this.btnApplyToInput);
             this.Controls.Add(this.txtAdjustValue);
             this.Controls.Add(this.trackAdjust);
@@ -399,6 +424,8 @@ namespace DPSCalculatorforTJZXD
         private System.Windows.Forms.TrackBar trackAdjust;
         private System.Windows.Forms.TextBox txtAdjustValue;
         private System.Windows.Forms.Button btnApplyToInput;
+        private System.Windows.Forms.CheckBox chkIsLasting;
+        private System.Windows.Forms.TextBox txtAttackAnim;
     }
 }
 

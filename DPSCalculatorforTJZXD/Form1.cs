@@ -459,101 +459,324 @@ namespace DPSCalculatorforTJZXD
             txtAdjustValue.KeyDown += txtAdjustValue_KeyDown;
         }
 
-        //全参伤害计算
-        private (double dps10, double dps45, double dpsAvg) CalculateDPS(
-        double damage,
-        double critChance,        // 已是小数
-        double critDamage,        // 已是倍率（如 2.0）
-        int bulletAmount,
-        int bulletCapacity,
-        double attackSpeed,
-        double reloadTime,
-        bool isEnergy,
-        int energyConsum = 0,
-        int energyPool = 0)
+        //非持续能量武器模拟
+        private (double dps10, double dps45, double dpsAvg) CalculateBurstEnergyDPS(
+            double damage,
+            double critChance,
+            double critDamage,
+            int bulletAmount,
+            double attackSpeed,
+            int energyConsum,
+            int energyPool,
+            double attackAnimTime)
         {
-            attackSpeed = Math.Max(attackSpeed, 1);  // ✅ 防止除以0
+            double perHitDamage = damage * ((1 - critChance) + critChance * critDamage);
+            double singleAttackDamage = perHitDamage * bulletAmount;
+            double interval = (100.0 / attackSpeed) + attackAnimTime;
 
-            double D = damage * ((1 - critChance) + critChance * critDamage);  // ✅ 计算期望伤害
+            double dps10, dps45, dpsAvg;
 
-            double tClip = (bulletCapacity - 1) * (100.0 / attackSpeed);
-            double tTotal = tClip + reloadTime;
-
-            double dps10 = 0;
+            // ➤ 判断是否为“永不缺能量”型能量武器
+            double regenPerSecond = energyPool / 6.0;
+            double avgEnergy = regenPerSecond * interval;
+            if (avgEnergy >= energyConsum)
             {
-                double T = 10.0;
-                int N = (int)Math.Floor(T / tTotal);
-                double Tremain = T - N * tTotal;
-                int t_spare = (int)Math.Floor(Tremain / (100.0 / attackSpeed));
-                double totalDamage = (N * bulletCapacity + t_spare) * bulletAmount * D;
-                dps10 = totalDamage / T;
-            }
+                double attackCount10 = Math.Floor(10.0 / interval);
+                double attackCount45 = Math.Floor(45.0 / interval);
 
-            double dps45 = 0;
-            {
-                double T = 45.0;
-                int N = (int)Math.Floor(T / tTotal);
-                double Tremain = T - N * tTotal;
-                int t_spare = (int)Math.Floor(Tremain / (100.0 / attackSpeed));
-                double totalDamage = (N * bulletCapacity + t_spare) * bulletAmount * D;
-                dps45 = totalDamage / T;
-            }
-
-            double dpsAvg = 0;
-            if (isEnergy)
-            {
-                int fireCount = energyConsum > 0 ? energyPool / energyConsum : 0;
-                int clipCount = (int)Math.Floor(fireCount / (double)(bulletAmount * bulletCapacity));
-                double totalTime = clipCount * tTotal + 6.0;
-                double totalDamage = fireCount * D;
-                dpsAvg = totalTime > 0 ? totalDamage / totalTime : 0;
+                dps10 = (attackCount10 * singleAttackDamage) / 10.0;
+                dps45 = (attackCount45 * singleAttackDamage) / 45.0;
+                dpsAvg = singleAttackDamage / interval;
             }
             else
             {
-                double totalDamage = bulletCapacity * bulletAmount * D;
-                dpsAvg = totalDamage / tTotal;
+                // 非永续能量武器：使用原始模拟逻辑
+                double regenWindow = Math.Max(0, interval - attackAnimTime);
+                double regenPerAttack = regenPerSecond * regenWindow;
+
+                double SimulateDPS(double totalTime)
+                {
+                    double time = 0;
+                    double simEnergy = energyPool;
+                    double simDamage = 0;
+
+                    while (time < totalTime)
+                    {
+                        if (simEnergy >= energyConsum)
+                        {
+                            simDamage += singleAttackDamage;
+                            simEnergy -= energyConsum;
+                            simEnergy = Math.Min(simEnergy + regenPerAttack, energyPool);
+                            time += interval;
+                        }
+                        else
+                        {
+                            double timeToRecover = (energyConsum - simEnergy) / regenPerSecond;
+                            if (time + timeToRecover <= totalTime)
+                            {
+                                time += timeToRecover;
+                                simDamage += singleAttackDamage;
+                                simEnergy = 0;
+                                time += 6.0;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    return simDamage / totalTime;
+                }
+
+                dps10 = SimulateDPS(10.0);
+                dps45 = SimulateDPS(45.0);
+
+                double fullTime = 0;
+                double localEnergy = energyPool;
+                double totalDamage = 0;
+
+                while (localEnergy >= energyConsum)
+                {
+                    totalDamage += singleAttackDamage;
+                    localEnergy -= energyConsum;
+                    localEnergy = Math.Min(localEnergy + regenPerAttack, energyPool);
+                    fullTime += interval;
+                }
+
+                if (localEnergy > 0)
+                {
+                    double timeToRecover = (energyConsum - localEnergy) / regenPerSecond;
+                    fullTime += timeToRecover;
+                    totalDamage += singleAttackDamage;
+                    fullTime += 6.0;
+                }
+                else
+                {
+                    fullTime += 6.0;
+                }
+
+                dpsAvg = totalDamage / fullTime;
             }
 
             return (dps10, dps45, dpsAvg);
         }
 
-        //附带单个属性伤害计算
-        private (double dps10, double dps45, double dpsAvg) CalculateDPS(double overrideValue, string key, Dictionary<string, double> others)
+
+
+
+
+        //持续能量武器模拟
+        private (double dps10, double dps45, double dpsAvg) CalculateSustainEnergyDPS(
+            double damage,
+            double critChance,
+            double critDamage,
+            int bulletAmount,
+            double attackSpeed,
+            int energyConsum,
+            int energyPool,
+            double attackAnimTime)
         {
-            double attackSpeed = Math.Max(
-                key == "AttackSpeed" ? overrideValue : others["AttackSpeed"], 1); // ✅ 防止为0
+            double interval = 100.0 / attackSpeed;
+            double perHitDamage = damage * ((1 - critChance) + critChance * critDamage);
+            double singleAttackDamage = perHitDamage * bulletAmount;
+
+            double drainRate = energyConsum; // 每秒流失
+
+            double SimulateDPS(double totalTime)
+            {
+                double time = 0;
+                double currentEnergy = energyPool;
+                double totalDamage = 0;
+
+                time += attackAnimTime; // 等待动画后首次触发
+                if (time <= totalTime)
+                {
+                    totalDamage += singleAttackDamage;
+                }
+
+                double nextAttackTime = time + interval;
+
+                while (true)
+                {
+                    double timeToDeplete = currentEnergy / drainRate;
+                    double attackEndTime = time + timeToDeplete;
+
+                    while (nextAttackTime < attackEndTime && nextAttackTime <= totalTime)
+                    {
+                        totalDamage += singleAttackDamage;
+                        nextAttackTime += interval;
+                    }
+
+                    time = attackEndTime;
+                    if (time >= totalTime) break;
+
+                    time += 6.0; // 冷却
+                    if (time > totalTime) break;
+
+                    time += attackAnimTime; // 下次攻击开始也需等待动画
+                    if (time > totalTime) break;
+
+                    totalDamage += singleAttackDamage; // 新一轮首次命中
+                    nextAttackTime = time + interval;
+                    currentEnergy = energyPool;
+                }
+
+                return totalDamage / totalTime;
+            }
+
+            double dps10 = SimulateDPS(10.0);
+            double dps45 = SimulateDPS(45.0);
+
+            double fullDrainTime = energyPool / drainRate;
+            int attackCount = 1 + (int)Math.Floor(fullDrainTime / interval);
+            double totalDamageCycle = attackCount * singleAttackDamage;
+            double totalTimeCycle = attackAnimTime + fullDrainTime + 6.0;
+
+            double dpsAvg = totalDamageCycle / totalTimeCycle;
+
+            return (dps10, dps45, dpsAvg);
+        }
+
+
+
+        //动能武器模拟
+        private (double dps10, double dps45, double dpsAvg) CalculateNormalDPS(
+            double damage,
+            double critChance,
+            double critDamage,
+            int bulletAmount,
+            int bulletCapacity,
+            double attackSpeed,
+            double reloadTime,
+            double attackAnimTime)
+        {
+            double interval = (100.0 / attackSpeed) + attackAnimTime;
+
+            double perHitDamage = damage * ((1 - critChance) + critChance * critDamage);
+            double singleAttackDamage = perHitDamage * bulletAmount;
+            double clipDamage = singleAttackDamage * bulletCapacity;
+
+            double tclip = (bulletCapacity - 1) * interval;
+            double tremain = 10.0 - tclip - reloadTime;
+            int t_spare = (int)Math.Floor(tremain / interval);
+            double dps10 = (clipDamage + t_spare * singleAttackDamage) / 10.0;
+
+            tclip = (bulletCapacity - 1) * interval;
+            tremain = 45.0 - tclip - reloadTime;
+            t_spare = (int)Math.Floor(tremain / interval);
+            double dps45 = (clipDamage + t_spare * singleAttackDamage) / 45.0;
+
+            double fullCycleTime = (bulletCapacity - 1) * interval + reloadTime;
+            double fullCycleDamage = clipDamage;
+            int fullCycles = (int)(45.0 / fullCycleTime);
+            double remainTime = 45.0 - fullCycles * fullCycleTime;
+            t_spare = (int)(remainTime / interval);
+            double remainDamage = t_spare * singleAttackDamage;
+            double dpsAvg = (fullCycleDamage * fullCycles + remainDamage) / 45.0;
+
+            return (dps10, dps45, dpsAvg);
+        }
+
+
+
+
+
+        //全参伤害计算
+        private (double dps10, double dps45, double dpsAvg) CalculateDPS(
+            double damage,
+            double critChance,
+            double critDamage,
+            int bulletAmount,
+            int bulletCapacity,
+            int attackSpeed,
+            double reloadTime,
+            bool isEnergy,
+            int energyConsum,
+            int energyPool,
+            double attackAnimTime)
+        {
+            if (isEnergy)
+            {
+                if (chkIsLasting.Checked)
+                {
+                    return CalculateSustainEnergyDPS(
+                        damage, critChance, critDamage, bulletAmount,
+                        attackSpeed, energyConsum, energyPool, attackAnimTime);
+                }
+                else
+                {
+                    return CalculateBurstEnergyDPS(
+                        damage, critChance, critDamage, bulletAmount,
+                        attackSpeed, energyConsum, energyPool, attackAnimTime);
+                }
+            }
+            else
+            {
+                return CalculateNormalDPS(
+                    damage, critChance, critDamage, bulletAmount,
+                    attackSpeed, reloadTime, bulletCapacity, attackAnimTime);
+            }
+        }
+
+
+
+
+        //附带单个属性伤害计算
+        private (double dps10, double dps45, double dpsAvg) CalculateDPS(
+            double overrideValue, string key, Dictionary<string, double> others)
+        {
+            int attackSpeed = Math.Max(
+                (int)(key == "AttackSpeed" ? overrideValue : others["AttackSpeed"]), 1); // 防止为0
+
+            // 🔁 安全获取字典项的方法，提供控件值作为 fallback
+            double GetOrDefault(string k, double fallback)
+                => others.TryGetValue(k, out var val) ? val : fallback;
+
+            double attackAnimTime = key == "AttackAnimTime"
+                ? overrideValue
+                : GetOrDefault("attackAnimTime", double.Parse(txtAttackAnim.Text));
 
             return CalculateDPS(
                 key == "Damage" ? overrideValue : others["Damage"],
-                (key == "CriticalChance" ? overrideValue : others["CriticalChance"]) / 100.0,  // ✅ 百分比转小数
-                (key == "CriticalDamage" ? overrideValue : others["CriticalDamage"]) / 100.0,  // ✅ 倍率除以100
+                (key == "CriticalChance" ? overrideValue : others["CriticalChance"]) / 100.0,
+                (key == "CriticalDamage" ? overrideValue : others["CriticalDamage"]) / 100.0,
                 (int)(key == "BulletAmount" ? overrideValue : others["BulletAmount"]),
                 (int)(key == "BulletCapacity" ? overrideValue : others["BulletCapacity"]),
                 attackSpeed,
                 key == "ReloadTime" ? overrideValue : others["ReloadTime"],
                 chkIsEnergy.Checked,
                 (int)(key == "EnergyConsum" ? overrideValue : others["EnergyConsum"]),
-                (int)(key == "EnergyPool" ? overrideValue : others["EnergyPool"])
+                (int)(key == "EnergyPool" ? overrideValue : GetOrDefault("EnergyPool", double.Parse(txtEnergyPool.Text))),
+                attackAnimTime
             );
         }
+
+
+
 
         //完整状态字典
         private (double dps10, double dps45, double dpsAvg) CalculateDPS(Dictionary<string, double> dict)
         {
-            double attackSpeed = Math.Max(dict["AttackSpeed"], 1); // 防止为0
+            int attackSpeed = Math.Max((int)dict["AttackSpeed"], 1); // 防止为0
+            double attackAnimTime = dict["attackAnimTime"];
+
             return CalculateDPS(
                 dict["Damage"],
-                dict["CriticalChance"] / 100.0,   // ✅ 百分比转小数
-                dict["CriticalDamage"] / 100.0,   // ✅ 倍率除以100（200变成2.0）
+                dict["CriticalChance"] / 100.0, // 百分比转小数
+                dict["CriticalDamage"] / 100.0, // 倍率除以100
                 (int)dict["BulletAmount"],
                 (int)dict["BulletCapacity"],
                 attackSpeed,
                 dict["ReloadTime"],
                 chkIsEnergy.Checked,
                 (int)dict["EnergyConsum"],
-                (int)dict["EnergyPool"]
+                (int)dict["EnergyPool"],
+                attackAnimTime
             );
         }
+
+
 
         //btnUPDATE
         //伤害计算方法
@@ -570,7 +793,8 @@ namespace DPSCalculatorforTJZXD
                 ["AttackSpeed"] = double.Parse(txtAttackSpeed.Text),
                 ["ReloadTime"] = double.Parse(txtReloadTime.Text),
                 ["EnergyConsum"] = int.Parse(txtEnergyConsum.Text),
-                ["EnergyPool"] = int.Parse(txtEnergyPool.Text)
+                ["EnergyPool"] = int.Parse(txtEnergyPool.Text),
+                ["attackAnimTime"] = double.Parse(txtAttackAnim.Text)
             };
 
             var (dps10, dps45, dpsAvg) = CalculateDPS(dict);
@@ -590,6 +814,9 @@ namespace DPSCalculatorforTJZXD
             }
         }
 
+
+
+
         private void txtEnergyPool_TextChanged(object sender, EventArgs e)
         {
 
@@ -607,5 +834,19 @@ namespace DPSCalculatorforTJZXD
 
         }
 
+        private void txtDPS10s_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtBulletAmount_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }
