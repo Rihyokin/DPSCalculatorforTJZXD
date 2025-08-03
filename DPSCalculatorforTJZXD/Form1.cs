@@ -562,10 +562,6 @@ namespace DPSCalculatorforTJZXD
             return (dps10, dps45, dpsAvg);
         }
 
-
-
-
-
         //持续能量武器模拟
         private (double dps10, double dps45, double dpsAvg) CalculateSustainEnergyDPS(
             double damage,
@@ -646,37 +642,47 @@ namespace DPSCalculatorforTJZXD
             double critChance,
             double critDamage,
             int bulletAmount,
-            int bulletCapacity,
             double attackSpeed,
             double reloadTime,
+            int bulletCapacity,
             double attackAnimTime)
         {
+            // 单发间隔（使用修正后公式）
             double interval = (100.0 / attackSpeed) + attackAnimTime;
 
+            // 暴击期望伤害
             double perHitDamage = damage * ((1 - critChance) + critChance * critDamage);
             double singleAttackDamage = perHitDamage * bulletAmount;
-            double clipDamage = singleAttackDamage * bulletCapacity;
 
-            double tclip = (bulletCapacity - 1) * interval;
-            double tremain = 10.0 - tclip - reloadTime;
-            int t_spare = (int)Math.Floor(tremain / interval);
-            double dps10 = (clipDamage + t_spare * singleAttackDamage) / 10.0;
+            // -------------------
+            // --- 计算 10s DPS ---
+            // -------------------
+            double t_clip = (bulletCapacity - 1) * interval + reloadTime;
+            int N10 = (int)Math.Floor(10.0 / t_clip);
+            double tremain10 = 10.0 - N10 * t_clip;
+            int T10 = (int)Math.Floor(tremain10 / interval);
+            double totalDamage10 = N10 * bulletCapacity * singleAttackDamage + T10 * singleAttackDamage;
+            double dps10 = totalDamage10 / 10.0;
 
-            tclip = (bulletCapacity - 1) * interval;
-            tremain = 45.0 - tclip - reloadTime;
-            t_spare = (int)Math.Floor(tremain / interval);
-            double dps45 = (clipDamage + t_spare * singleAttackDamage) / 45.0;
+            // -------------------
+            // --- 计算 45s DPS ---
+            // -------------------
+            int N45 = (int)Math.Floor(45.0 / t_clip);
+            double tremain45 = 45.0 - N45 * t_clip;
+            int T45 = (int)Math.Floor(tremain45 / interval);
+            double totalDamage45 = N45 * bulletCapacity * singleAttackDamage + T45 * singleAttackDamage;
+            double dps45 = totalDamage45 / 45.0;
 
-            double fullCycleTime = (bulletCapacity - 1) * interval + reloadTime;
-            double fullCycleDamage = clipDamage;
-            int fullCycles = (int)(45.0 / fullCycleTime);
-            double remainTime = 45.0 - fullCycles * fullCycleTime;
-            t_spare = (int)(remainTime / interval);
-            double remainDamage = t_spare * singleAttackDamage;
-            double dpsAvg = (fullCycleDamage * fullCycles + remainDamage) / 45.0;
+            // -------------------------
+            // --- 计算平均循环 DPS ---
+            // -------------------------
+            double dpsAvgNumerator = bulletCapacity * singleAttackDamage;
+            double dpsAvgDenominator = (bulletCapacity - 1) * interval + reloadTime;
+            double dpsAvg = dpsAvgNumerator / dpsAvgDenominator;
 
             return (dps10, dps45, dpsAvg);
         }
+
 
 
 
@@ -845,6 +851,11 @@ namespace DPSCalculatorforTJZXD
         }
 
         private void txtBulletAmount_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtBulletCapacity_TextChanged(object sender, EventArgs e)
         {
 
         }

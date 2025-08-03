@@ -96,6 +96,7 @@ namespace DPSCalculatorforTJZXD
             this.txtBulletCapacity.Name = "txtBulletCapacity";
             this.txtBulletCapacity.Size = new System.Drawing.Size(100, 25);
             this.txtBulletCapacity.TabIndex = 12;
+            this.txtBulletCapacity.TextChanged += new System.EventHandler(this.txtBulletCapacity_TextChanged);
             // 
             // txtCriticalDamage
             // 
@@ -345,7 +346,7 @@ namespace DPSCalculatorforTJZXD
             this.txtAttackAnim.Name = "txtAttackAnim";
             this.txtAttackAnim.Size = new System.Drawing.Size(100, 25);
             this.txtAttackAnim.TabIndex = 40;
-            this.txtAttackAnim.Text = "AtkAniTime";
+            this.txtAttackAnim.Text = "0";
             // 
             // Form1
             // 
